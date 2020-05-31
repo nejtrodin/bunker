@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+
+{% block head %}
+    <title>Станция "Красный Феникс"</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename = 'libs/flipclock/flipclock.css') }}">
+{% endblock head %}
+
+{% block content %}
+    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+        Здравствуйте, {{ character_name }}.
+        <a href="{{ url_for('character_settings') }}" class="nav-link mr-sm-2">Изменить имя</a>
+    </nav>
+    <br>
+
+    <div class="container bg-light">
+        <h2 class="text-center">Комната терминала</h2>
+        <div class="d-flex p-2 justify-content-center">
+            <a class="btn btn-primary" href="{{ url_for('bunker_hall') }}" role="button">Выйти из комнаты</a>
+        </div>
+    </div>
+
+    <div class="d-flex p-2 justify-content-center">
+        <div class="card text-center">
+            <div class="card-header">Время до конца...</div>
+            <div class="card-body justify-content-center">
+                <div class="clock"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container mt-3">
+        <div class="card">
+            <div class="card-header text-center">Терминал</div>
+            <div class="card-body justify-content-center">
+                <textarea class="form-control" rows="10" id="terminal-display" readonly></textarea>
+
+                <div class="input-group d-none" id="code_input_group">
+                    <div class="input-group-prepend">
+                        <span class="input-group-text">Код:</span>
+                    </div>
+                    <input type="text" class="form-control" id="terminal-input">
+                    <span class="input-group-btn">
+                        <button class="btn btn-secondary" type="button" id="terminal-send" >Передать</button>
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+    <br>
+{% endblock content %}
+
+
+{% block javascript %}
+    <script type="text/javascript" src="{{ url_for('static', filename = 'libs/flipclock/flipclock.min.js') }}"></script>
+    <script type="text/javascript" src="{{ url_for('static', filename = 'js/reconnecting-websocket.min.js') }}"></script>
+    <script>
+        var clock;
+        var timeoutId;
+        var ring_one = new Audio("{{ url_for('static', filename = 'sounds/ring_one.mp3') }}");
+
+        if (window.location.protocol == "https:") {
+            var ws_scheme = "wss://";
+        } else {
+            var ws_scheme = "ws://";
+        };
+
+        const gameSocket = new ReconnectingWebSocket(ws_scheme + window.location.host + "/ws/game");
+
+        gameSocket.onmessage = function(e) {
+            const data = JSON.parse(e.data);
+            if (typeof(data.time) != "undefined") {
+                clock.setTime(data.time);
+                if (data.timer_run) {
+                    clock.start();
+                    backgroundAction();
+                }
+                else {
+                    clock.stop();
+                };
+            };
+
+            if (typeof(data.terminal_message) != "undefined") {
+                var terminal_display = document.getElementById('terminal-display');
+                terminal_display.value += (data.terminal_message + '\n');
+                terminal_display.scrollTop = terminal_display.scrollHeight;
+            };
+        };
+
+        gameSocket.onclose = function(e) {
+            console.log('gameSocket closed');
+            this.gameSocket = new WebSocket(gameSocket.url);
+        };
+
+        $(document).ready(function() {
+            clock = $(".clock").FlipClock({
+                clockFace : "MinuteCounter",
+                autoStart : false,
+                countdown : true,
+                language : "Russian",
+            });
+            clock.setTime({{ time }});
+            {% if timer_run %}
+            clock.start();
+            backgroundAction();
+            {% endif %}
+            document.querySelector('#terminal-display').value = '{{ terminal_history }}'
+        });
+
+        function backgroundAction() {
+            clearTimeout(timeoutId);
+            time = clock.getTime()
+            if (time > 60) {
+                timeoutMs = 1000 * (time - 60);
+                timeoutId = setTimeout(backgroundAction, timeoutMs);
+            } else if (time > 40) {
+                timeoutMs = 1000 * (time - 5*Math.floor((time - 1)/5));
+                timeoutId = setTimeout(backgroundAction, timeoutMs);
+            } else if (time > 20) {
+                timeoutMs = 1000 * (time - 4*Math.floor((time - 1)/4));
+                timeoutId = setTimeout(backgroundAction, timeoutMs);
+            } else if (time > 10) {
+                timeoutMs = 1000 * (time - 2*Math.floor((time - 1)/2));
+                timeoutId = setTimeout(backgroundAction, timeoutMs);
+            } else if (time > 0) {
+                timeoutMs = 1000 * (time - Math.floor((time - 1)));
+                timeoutId = setTimeout(backgroundAction, timeoutMs);
+            }
+
+            if (time <= 60 && time >= 0) {
+                ring_one.play();
+                $("#code_input_group").removeClass('d-none');
+            } else {
+                $("#code_input_group").addClass('d-none');
+            }
+        };
+
+        document.querySelector('#terminal-send').onclick = function(e) {
+            const messageInputDom = document.querySelector('#terminal-input');
+            message = "{{ character_name }}:" + messageInputDom.value;
+            gameSocket.send(JSON.stringify({'terminal_message': message}));
+            messageInputDom.value = '';
+        };
+    </script>
+{% endblock javascript%}
+

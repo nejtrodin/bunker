@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="ru">
+    <head>
+        <meta http-equip="Content-Type" content="text/html; charset=utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        {% block head %}{% endblock head %}
+
+        <!-- Bootstrap -->
+        <link rel="stylesheet" href="{{ url_for('static', filename = 'libs/bootstrap-4.5.0-dist/css/bootstrap.min.css') }}">
+    </head>
+
+    <body>
+        {% with messages = get_flashed_messages() %}
+        {% if messages %}
+        <hr><ul>
+            {% for message in messages %}
+            <li>{{ message }}</li>
+            {% endfor %}
+        </ul><hr>
+        {% endif %}
+        {% endwith %}
+
+    {% block content %}{% endblock content %}
+
+        <!-- Optional JavaScript -->
+        <!-- jQuery first, then Popper.js, then Bootstrap JS -->
+        <script src="/static/libs/jquery-3.3.1/jquery.min.js"></script>
+        <!--    <script src="/static/libs/popper.min.js"></script>-->
+        <script src="/static/libs/bootstrap-4.5.0-dist/js/bootstrap.min.js"></script>
+    {% block javascript %}{% endblock%}
+    </body>
+
+
+</html>

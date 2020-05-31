@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+
+{% block head %}
+    <title>Станция "Красный Феникс"</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename = 'libs/flipclock/flipclock.css') }}">
+{% endblock head %}
+
+
+{% block content %}
+      <nav class="navbar navbar-expand-lg navbar-light bg-light">
+          <div class="collapse navbar-collapse" id="navbarSupportedContent">
+                <ul class="navbar-nav mr-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/game/bunker_hall/">Бункер</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/game/terminal">Терминал</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/game/admin/">Админка</a>
+                    </li>
+                </ul>
+          </div>
+      </nav>
+    <br>
+
+    <div class="d-flex p-2 justify-content-center">
+        <div class="card text-center">
+            <div class="card-header">Время до конца...</div>
+            <div class="card-body justify-content-center">
+                <div class="clock"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="d-flex p-2 justify-content-center">
+    <div class="card text-center">
+        <div class="card-header text-center">Управление таймером</div>
+        <div class="card-body justify-content-center">
+            <button type="button" class="btn btn-secondary" id="game-start-btn">Запуск</button>
+            <button type="button" class="btn btn-secondary" id="game-pause-btn">Пауза</button>
+            <button type="button" class="btn btn-secondary" id="game-stop-btn">Остановить (обнулить)</button>
+        </div>
+    </div>
+    </div>
+
+    <div class="container mt-3">
+        <div class="card text-center">
+            <div class="card-header text-center">Терминал</div>
+            <div class="card-body justify-content-center">
+                <div class="d-flex p-3">
+                    <input type="text" class="form-control p-2" placeholder="Код терминала: {{ secret_code }}" readonly>
+                    <a class="btn btn-outline-secondary" role="button" href="/game/secret-code">Изменить</a>
+                </div>
+                <hr>
+                <textarea class="form-control" rows="10" id="terminal-display" readonly></textarea>
+            </div>
+        </div>
+    </div>
+    <br>
+{% endblock content %}
+
+
+{% block javascript %}
+    <script type="text/javascript" src="{{ url_for('static', filename = 'libs/flipclock/flipclock.min.js') }}"></script>
+<!--    <script type="text/javascript" src="{{ url_for('static', filename = 'libs/socket.io/1.7.4/socket.io.min.js') }}"></script>-->
+    <script type="text/javascript" src="{{ url_for('static', filename = 'js/reconnecting-websocket.min.js') }}"></script>
+    <script>
+        var clock;
+        var timeoutId;
+        var ring_one = new Audio("{{ url_for('static', filename = 'sounds/ring_one.mp3') }}");
+        {% if timer_run %}
+        var timer_run = true;
+        {% else %}
+        var timer_run = false;
+        {% endif %}
+
+        if (window.location.protocol == "https:") {
+            var ws_scheme = "wss://";
+        } else {
+            var ws_scheme = "ws://";
+        };
+
+
+        const gameSocket = new ReconnectingWebSocket(ws_scheme + window.location.host + "/ws/game");
+<!--        var gameSocket = io.connect('http://' + window.location.host + ':' + location.port);-->
+
+<!--        socket.on('notification', function(msg) {-->
+<!--            console.log('New notification! ', msg);-->
+<!--        });-->
+
+<!--        socket.on('connect', function() {-->
+<!--            socket.emit( 'my event', {-->
+<!--                data: 'User Connected'-->
+<!--            })-->
+<!--            var form = $( 'form' ).on( 'submit', function( e ) {-->
+<!--                e.preventDefault()-->
+<!--                let user_name = $( 'input.username' ).val()-->
+<!--                let user_input = $( 'input.message' ).val()-->
+<!--                socket.emit( 'my event', {-->
+<!--                    user_name : user_name,-->
+<!--                    message : user_input-->
+<!--                })-->
+<!--                $( 'input.message' ).val( '' ).focus()-->
+<!--            })-->
+<!--        })-->
+
+        gameSocket.onmessage = function(e) {
+            const data = JSON.parse(e.data);
+            if (typeof(data.time) != "undefined") {
+                clock.setTime(data.time);
+                if (data.timer_run) {
+                    clock.start();
+                    backgroundAction();
+                    timer_run = true;
+                }
+                else {
+                    clock.stop();
+                    clearTimeout(timeoutId);
+                    timer_run = false;
+                };
+            };
+        };
+
+        gameSocket.onclose = function(e) {
+            console.log('gameSocket closed');
+            this.gameSocket = new WebSocket(gameSocket.url);
+        };
+
+        document.querySelector('#game-start-btn').onclick = function(e) {
+            gameSocket.send(JSON.stringify({'command': 'start_game'}));
+        };
+
+        document.querySelector('#game-stop-btn').onclick = function(e) {
+            gameSocket.send(JSON.stringify({'command': 'stop_game'}));
+        };
+
+        document.querySelector('#game-pause-btn').onclick = function(e) {
+            gameSocket.send(JSON.stringify({'command': 'pause_game'}));
+        };
+
+
+        $(document).ready(function() {
+            clock = $(".clock").FlipClock({
+                clockFace : "MinuteCounter",
+                autoStart : false,
+                countdown : true,
+                language : "Russian",
+            });
+            clock.setTime({{ time }});
+            {% if timer_run %}
+            clock.start();
+            backgroundAction();
+            {% endif %}
+            document.querySelector('#terminal-display').value = '{{ terminal_history }}'
+        })
+
+
+        function backgroundAction() {
+            clearTimeout(timeoutId);
+            time = clock.getTime()
+            if (time > 60) {
+                timeoutMs = 1000 * (time - 60);
+                timeoutId = setTimeout(backgroundAction, timeoutMs);
+            } else if (time > 40) {
+                timeoutMs = 1000 * (time - 5*Math.floor((time - 1)/5));
+                timeoutId = setTimeout(backgroundAction, timeoutMs);
+            } else if (time > 20) {
+                timeoutMs = 1000 * (time - 4*Math.floor((time - 1)/4));
+                timeoutId = setTimeout(backgroundAction, timeoutMs);
+            } else if (time > 10) {
+                timeoutMs = 1000 * (time - 2*Math.floor((time - 1)/2));
+                timeoutId = setTimeout(backgroundAction, timeoutMs);
+            } else if (time > 0) {
+                timeoutMs = 1000 * (time - Math.floor((time - 1)));
+                timeoutId = setTimeout(backgroundAction, timeoutMs);
+            }
+
+            if (time <= 60 && time >= 0) {
+                ring_one.play();
+            }
+        };
+    </script>
+{% endblock javascript%}
