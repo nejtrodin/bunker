@@ -135,16 +135,24 @@ def game_admin():
         db.session.commit()
         print("create new Game")
 
-    history = ''
+    terminal_history = ''
     message_objects = TerminalMessage.query.filter_by(game_id=game.id)
     for message in message_objects:
-        history += message.time.strftime("%H:%M:%S")
-        history += " " + message.author
-        history += " : " + message.text + "\\n"
-        history += message.answer + "\\n"
+        terminal_history += message.time.strftime("%H:%M:%S")
+        terminal_history += " " + message.author
+        terminal_history += " : " + message.text + "\\n"
+        terminal_history += message.answer + "\\n"
+
+    radio_history = ''
+    message_objects = RadioMessage.query.filter_by(game_id=game.id)
+    for message in message_objects:
+        radio_history += message.time.strftime("%H:%M:%S")
+        radio_history += " " + message.author
+        radio_history += " : " + message.text + "\\n"
 
     return render_template('game_admin.html',
                            time=game.update(datetime.utcnow()),
                            timer_run=game.gameStarted,
                            secret_code=game.secretCode,
-                           terminal_history=history,)
+                           terminal_history=terminal_history,
+                           transmitter_history=radio_history,)
