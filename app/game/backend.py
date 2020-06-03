@@ -4,7 +4,7 @@ from app import sockets
 from config import Config
 from redis import Redis
 from flask import current_app
-
+from app.tasks import start_game, pause_game, end_game, clear_game, terminal_message, radio_receive
 
 GAME_CHANNEL = 'testGame'
 
@@ -63,25 +63,30 @@ def game_socket(ws):
         gevent.sleep(0.1)
         message = ws.receive()
         if message:
-            print(u'Inserting message: {}'.format(message))
             data = json.loads(message)
 
             command = data.get('command')
             if command == 'start_game':
-                current_app.task_queue.enqueue('app.tasks.start_game')
+                start_game()
+                # current_app.task_queue.enqueue('app.tasks.start_game')
                 # game_backend.start_game()
             elif command == 'stop_game':
-                current_app.task_queue.enqueue('app.tasks.end_game')
+                end_game()
+                # current_app.task_queue.enqueue('app.tasks.end_game')
                 # game_backend.end_game()
             elif command == 'pause_game':
-                current_app.task_queue.enqueue('app.tasks.pause_game')
+                pause_game()
+                # current_app.task_queue.enqueue('app.tasks.pause_game')
             elif command == 'clear_game':
-                current_app.task_queue.enqueue('app.tasks.clear_game')
+                clear_game()
+                # current_app.task_queue.enqueue('app.tasks.clear_game')
 
-            terminal_message = data.get('terminal_send')
-            if terminal_message:
-                current_app.task_queue.enqueue('app.tasks.terminal_message', terminal_message)
+            terminal_send = data.get('terminal_send')
+            if terminal_send:
+                terminal_message(terminal_send)
+                # current_app.task_queue.enqueue('app.tasks.terminal_message', terminal_message)
 
-            radio_message = data.get('radio_send')
-            if radio_message:
-                current_app.task_queue.enqueue('app.tasks.radio_receive', radio_message)
+            radio_send = data.get('radio_send')
+            if radio_send:
+                radio_receive(radio_send)
+                # current_app.task_queue.enqueue('app.tasks.radio_receive', radio_send)
