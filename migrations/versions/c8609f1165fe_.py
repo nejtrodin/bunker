@@ -1,8 +1,8 @@
 """empty message
 
-Revision ID: 2d598cab46ac
+Revision ID: c8609f1165fe
 Revises: 
-Create Date: 2020-06-01 21:23:03.692738
+Create Date: 2020-06-03 20:50:24.201809
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '2d598cab46ac'
+revision = 'c8609f1165fe'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -42,14 +42,27 @@ def upgrade():
     )
     op.create_index(op.f('ix_user_email'), 'user', ['email'], unique=True)
     op.create_index(op.f('ix_user_username'), 'user', ['username'], unique=True)
-    op.create_table('terminal_message',
+    op.create_table('radio_message',
     sa.Column('id', sa.Integer(), nullable=False),
-    sa.Column('game_name', sa.Integer(), nullable=True),
+    sa.Column('game_id', sa.Integer(), nullable=True),
     sa.Column('time', sa.DateTime(), nullable=True),
     sa.Column('author', sa.String(length=100), nullable=True),
     sa.Column('text', sa.String(length=200), nullable=True),
     sa.Column('answer', sa.String(length=200), nullable=True),
-    sa.ForeignKeyConstraint(['game_name'], ['game.id'], ),
+    sa.Column('transmitter_state', sa.String(length=20), nullable=True),
+    sa.ForeignKeyConstraint(['game_id'], ['game.id'], ),
+    sa.PrimaryKeyConstraint('id')
+    )
+    op.create_index(op.f('ix_radio_message_author'), 'radio_message', ['author'], unique=False)
+    op.create_index(op.f('ix_radio_message_text'), 'radio_message', ['text'], unique=False)
+    op.create_table('terminal_message',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('game_id', sa.Integer(), nullable=True),
+    sa.Column('time', sa.DateTime(), nullable=True),
+    sa.Column('author', sa.String(length=100), nullable=True),
+    sa.Column('text', sa.String(length=200), nullable=True),
+    sa.Column('answer', sa.String(length=200), nullable=True),
+    sa.ForeignKeyConstraint(['game_id'], ['game.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_terminal_message_answer'), 'terminal_message', ['answer'], unique=False)
@@ -64,6 +77,9 @@ def downgrade():
     op.drop_index(op.f('ix_terminal_message_author'), table_name='terminal_message')
     op.drop_index(op.f('ix_terminal_message_answer'), table_name='terminal_message')
     op.drop_table('terminal_message')
+    op.drop_index(op.f('ix_radio_message_text'), table_name='radio_message')
+    op.drop_index(op.f('ix_radio_message_author'), table_name='radio_message')
+    op.drop_table('radio_message')
     op.drop_index(op.f('ix_user_username'), table_name='user')
     op.drop_index(op.f('ix_user_email'), table_name='user')
     op.drop_table('user')

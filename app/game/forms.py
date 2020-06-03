@@ -4,5 +4,10 @@ from wtforms.validators import DataRequired
 
 
 class CharacterForm(FlaskForm):
-    character_name = StringField('Имя', validators=[DataRequired()])
+    character_name = StringField('Имя: ', validators=[DataRequired()])
     submit = SubmitField('Войти в игру')
+
+
+class SecretCodeForm(FlaskForm):
+    secretCode = StringField('Код: ', validators=[DataRequired()])
+    submit = SubmitField('Сохранить')

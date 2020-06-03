@@ -7,22 +7,15 @@
 
 
 {% block content %}
-      <nav class="navbar navbar-expand-lg navbar-light bg-light">
-          <div class="collapse navbar-collapse" id="navbarSupportedContent">
-                <ul class="navbar-nav mr-auto">
-                    <li class="nav-item">
-                        <a class="nav-link" href="/game/bunker_hall/">Бункер</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="/game/terminal">Терминал</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="/game/admin/">Админка</a>
-                    </li>
-                </ul>
-          </div>
-      </nav>
+    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+        Здравствуйте, {{ character_name }}.
+        <a href="{{ url_for('game.character_settings') }}" class="nav-link mr-sm-2">Изменить имя</a>
+    </nav>
     <br>
+
+    <div class="container bg-light">
+        <h2 class="text-center">Радиорубка</h2>
+    </div>
 
     <div class="d-flex p-2 justify-content-center">
         <div class="card text-center">
@@ -33,48 +26,29 @@
         </div>
     </div>
 
-    <div class="container">
-        <div class="card-deck">
-            <div class="card text-center">
-                <div class="card-header text-center">Управление таймером</div>
-                <div class="d-flex flex-wrap justify-content-center">
-                    <button type="button" class="btn btn-secondary m-1" id="game-start-btn">Запуск</button>
-                    <button type="button" class="btn btn-secondary m-1" id="game-pause-btn">Пауза</button>
-                    <button type="button" class="btn btn-secondary m-1" id="game-stop-btn">Остановить (обнулить)</button>
-                </div>
-            </div>
-            <div class="card text-center">
-                <div class="card-header text-center">Код терминала</div>
-                <div class="card-body">
-                    <div class="d-flex flex-wrap justify-content-center">
-                    <h4 class="label m-1">{{ secret_code }}</h4>
-                    <a class="btn btn-outline-secondary" role="button" href="/game/secret-code">Изменить</a>
-                    </div>
-                </div>
-            </div>
-            <div class="card text-center">
-                <div class="card-header text-center">Очистка истории игры</div>
-                <div class="d-flex flex-wrap justify-content-center">
-                    <div class="d-flex p-3">
-                        <button type="button" class="btn btn-secondary" id="clear-game-btn">Очистить игру</button>
-                    </div>
-                </div>
+    <div class="d-flex p-2 justify-content-center">
+        <div class="card text-center">
+            <div class="card-header">Навигация</div>
+            <div class="card-body justify-content-center">
+                <a class="btn btn-primary" href="{{ url_for('game.bunker_hall') }}" role="button">Выйти из комнаты</a>
             </div>
         </div>
     </div>
 
-    <div class="container mt-2">
-        <div class="card-deck">
-            <div class="card text-center">
-                <div class="card-header text-center">Терминал</div>
-                <div class="card-body justify-content-center">
-                    <textarea class="form-control" rows="10" id="terminal-display" readonly></textarea>
-                </div>
-            </div>
-            <div class="card text-center">
-                <div class="card-header text-center">Передатчик</div>
-                <div class="card-body justify-content-center">
-                    <textarea class="form-control" rows="10" id="transmitter-display" readonly></textarea>
+    <div class="container mt-3">
+        <div class="card">
+            <div class="card-header text-center">Передатчик</div>
+            <div class="card-body justify-content-center">
+                <textarea class="form-control" rows="10" id="transmitter-display" readonly></textarea>
+
+                <div class="input-group" id="radio_input_group">
+                    <div class="input-group-prepend">
+                        <span class="input-group-text">Сообщение:</span>
+                    </div>
+                    <input type="text" class="form-control" id="transmitter-input">
+                    <span class="input-group-btn">
+                        <button class="btn btn-primary" type="button" id="transmitter-send-btn" >Отправить</button>
+                    </span>
                 </div>
             </div>
         </div>
@@ -90,11 +64,6 @@
         var clock;
         var timeoutId;
         var ring_one = new Audio("{{ url_for('static', filename = 'sounds/ring_one.mp3') }}");
-        {% if timer_run %}
-        var timer_run = true;
-        {% else %}
-        var timer_run = false;
-        {% endif %}
 
         if (window.location.protocol == "https:") {
             var ws_scheme = "wss://";
@@ -114,27 +83,19 @@
                     if (data.timer_run) {
                         clock.start();
                         backgroundAction();
-                        timer_run = true;
                     }
                     else {
                         clock.stop();
                         clearTimeout(timeoutId);
-                        timer_run = false;
                     };
-                } else if (data.type == 'terminal_display') {
-                    var terminal_display = document.querySelector('#terminal-display');
-                    terminal_display.value += (data.message + '\n');
-                    terminal_display.scrollTop = terminal_display.scrollHeight;
                 } else if (data.type == 'radio_message') {
                     var transmitter_display = document.querySelector('#transmitter-display');
                     transmitter_display.value += (data.message + '\n');
                     transmitter_display.scrollTop = transmitter_display.scrollHeight;
                 } else if (data.type == 'clear_game') {
-                    var terminal_display = document.querySelector('#terminal-display');
-                    terminal_display.value = '';
                     var transmitter_display = document.querySelector('#transmitter-display');
                     transmitter_display.value = '';
-                };
+                };;
             };
         };
 
@@ -147,23 +108,6 @@
             console.log('gameCommandSocket closed');
             this.gameCommandSocket = new WebSocket(gameCommandSocket.url);
         };
-
-        document.querySelector('#game-start-btn').onclick = function(e) {
-            gameCommandSocket.send(JSON.stringify({'command': 'start_game'}));
-        };
-
-        document.querySelector('#game-stop-btn').onclick = function(e) {
-            gameCommandSocket.send(JSON.stringify({'command': 'stop_game'}));
-        };
-
-        document.querySelector('#game-pause-btn').onclick = function(e) {
-            gameCommandSocket.send(JSON.stringify({'command': 'pause_game'}));
-        };
-
-        document.querySelector('#clear-game-btn').onclick = function(e) {
-            gameCommandSocket.send(JSON.stringify({'command': 'clear_game'}));
-        };
-
 
 
         $(document).ready(function() {
@@ -178,9 +122,8 @@
             clock.start();
             backgroundAction();
             {% endif %}
-            document.querySelector('#terminal-display').value = '{{ terminal_history }}'
             document.querySelector('#transmitter-display').value = '{{ transmitter_history }}'
-        })
+        });
 
 
         function backgroundAction() {
@@ -206,6 +149,13 @@
             if (time <= 60 && time >= 0) {
                 ring_one.play();
             }
+        };
+
+        document.querySelector('#transmitter-send-btn').onclick = function(e) {
+            const messageInputDom = document.querySelector('#transmitter-input');
+            message = "{{ character_name }}:" + messageInputDom.value;
+            gameCommandSocket.send(JSON.stringify({'radio_send': message}));
+            messageInputDom.value = '';
         };
     </script>
 {% endblock javascript%}

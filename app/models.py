@@ -24,7 +24,7 @@ class Game(db.Model):
     secretCode = db.Column(db.String(200), index=True, default='1 2 3 4')
 
     def __repr__(self):
-        return '<Game {}>'.format(self.name)
+        return '<Game {}. State {}. Left: {}>'.format(self.name, self.state, self.left_time)
 
     def update(self, now):
         if self.gameStarted:
@@ -37,17 +37,30 @@ class Game(db.Model):
                 self.state = 'stop'
                 timer_value = 0
         else:
-            timer_value = 0
+            timer_value = self.left_time
         return timer_value
 
 
 class TerminalMessage(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    game_name = db.Column(db.Integer, db.ForeignKey('game.id'))
+    game_id = db.Column(db.Integer, db.ForeignKey('game.id'))
     time = db.Column(db.DateTime)
     author = db.Column(db.String(100), index=True)
     text = db.Column(db.String(200), index=True)
     answer = db.Column(db.String(200), index=True)
+
+    def __repr__(self):
+        return '<Post {}>'.format(self.text)
+
+
+class RadioMessage(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    game_id = db.Column(db.Integer, db.ForeignKey('game.id'))
+    time = db.Column(db.DateTime)
+    author = db.Column(db.String(100), index=True)
+    text = db.Column(db.String(200), index=True)
+    answer = db.Column(db.String(200), nullable=True)
+    transmitter_state = db.Column(db.String(20), nullable=True)
 
     def __repr__(self):
         return '<Post {}>'.format(self.text)

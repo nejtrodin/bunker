@@ -1,20 +1,6 @@
+from app import create_app
 
-from app import app
-import logging
-from logging.handlers import RotatingFileHandler
-from flask import redirect, url_for
-
-
-@app.route('/')
-def foo():
-    app.logger.warning('A warning occurred (%d apples)', 42)
-    app.logger.error('An error occurred')
-    app.logger.info('Info')
-    return redirect(url_for('bunker_hall'))
-
+app = create_app()
 
 if __name__ == '__main__':
-    handler = RotatingFileHandler('foo.log', maxBytes=10000, backupCount=1)
-    handler.setLevel(logging.INFO)
-    app.logger.addHandler(handler)
     app.run()

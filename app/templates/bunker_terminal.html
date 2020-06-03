@@ -5,18 +5,16 @@
     <link rel="stylesheet" href="{{ url_for('static', filename = 'libs/flipclock/flipclock.css') }}">
 {% endblock head %}
 
+
 {% block content %}
     <nav class="navbar navbar-expand-lg navbar-light bg-light">
         Здравствуйте, {{ character_name }}.
-        <a href="{{ url_for('character_settings') }}" class="nav-link mr-sm-2">Изменить имя</a>
+        <a href="{{ url_for('game.character_settings') }}" class="nav-link mr-sm-2">Изменить имя</a>
     </nav>
     <br>
 
     <div class="container bg-light">
         <h2 class="text-center">Комната терминала</h2>
-        <div class="d-flex p-2 justify-content-center">
-            <a class="btn btn-primary" href="{{ url_for('bunker_hall') }}" role="button">Выйти из комнаты</a>
-        </div>
     </div>
 
     <div class="d-flex p-2 justify-content-center">
@@ -24,6 +22,15 @@
             <div class="card-header">Время до конца...</div>
             <div class="card-body justify-content-center">
                 <div class="clock"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="d-flex p-2 justify-content-center">
+        <div class="card text-center">
+            <div class="card-header">Навигация</div>
+            <div class="card-body justify-content-center">
+                <a class="btn btn-primary" href="{{ url_for('game.bunker_hall') }}" role="button">Выйти из комнаты</a>
             </div>
         </div>
     </div>
@@ -40,7 +47,7 @@
                     </div>
                     <input type="text" class="form-control" id="terminal-input">
                     <span class="input-group-btn">
-                        <button class="btn btn-secondary" type="button" id="terminal-send" >Передать</button>
+                        <button class="btn btn-danger" type="button" id="terminal-send" >Передать</button>
                     </span>
                 </div>
             </div>
@@ -64,32 +71,47 @@
             var ws_scheme = "ws://";
         };
 
-        const gameSocket = new ReconnectingWebSocket(ws_scheme + window.location.host + "/ws/game");
 
-        gameSocket.onmessage = function(e) {
+        const gameStateSocket = new ReconnectingWebSocket(ws_scheme + window.location.host + "/ws/game/state");
+        const gameCommandSocket = new ReconnectingWebSocket(ws_scheme + window.location.host + "/ws/game/command");
+
+        gameStateSocket.onmessage = function(e) {
             const data = JSON.parse(e.data);
-            if (typeof(data.time) != "undefined") {
-                clock.setTime(data.time);
-                if (data.timer_run) {
-                    clock.start();
-                    backgroundAction();
-                }
-                else {
-                    clock.stop();
-                };
-            };
-
-            if (typeof(data.terminal_message) != "undefined") {
-                var terminal_display = document.getElementById('terminal-display');
-                terminal_display.value += (data.terminal_message + '\n');
-                terminal_display.scrollTop = terminal_display.scrollHeight;
+            if (typeof(data.type) != "undefined") {
+                if (data.type == 'game_state') {
+                    clock.setTime(data.time);
+                    if (data.timer_run) {
+                        clock.start();
+                        backgroundAction();
+                        timer_run = true;
+                    }
+                    else {
+                        clock.stop();
+                        clearTimeout(timeoutId);
+                        timer_run = false;
+                        $("#code_input_group").addClass('d-none');
+                    };
+                } else if (data.type == 'terminal_display') {
+                    var terminal_display = document.querySelector('#terminal-display');
+                    terminal_display.value += (data.message + '\n');
+                    terminal_display.scrollTop = terminal_display.scrollHeight;
+                } else if (data.type == 'clear_game') {
+                    var terminal_display = document.querySelector('#terminal-display');
+                    terminal_display.value = '';
+                };;
             };
         };
 
-        gameSocket.onclose = function(e) {
-            console.log('gameSocket closed');
-            this.gameSocket = new WebSocket(gameSocket.url);
+        gameStateSocket.onclose = function(e) {
+            console.log('gameStateSocket closed');
+            this.gameStateSocket = new WebSocket(gameStateSocket.url);
         };
+
+        gameCommandSocket.onclose = function(e) {
+            console.log('gameCommandSocket closed');
+            this.gameCommandSocket = new WebSocket(gameCommandSocket.url);
+        };
+
 
         $(document).ready(function() {
             clock = $(".clock").FlipClock({
@@ -105,6 +127,7 @@
             {% endif %}
             document.querySelector('#terminal-display').value = '{{ terminal_history }}'
         });
+
 
         function backgroundAction() {
             clearTimeout(timeoutId);
@@ -137,9 +160,8 @@
         document.querySelector('#terminal-send').onclick = function(e) {
             const messageInputDom = document.querySelector('#terminal-input');
             message = "{{ character_name }}:" + messageInputDom.value;
-            gameSocket.send(JSON.stringify({'terminal_message': message}));
+            gameCommandSocket.send(JSON.stringify({'terminal_send': message}));
             messageInputDom.value = '';
         };
     </script>
 {% endblock javascript%}
-
