@@ -74,7 +74,7 @@
             <div class="card text-center">
                 <div class="card-header text-center">Передатчик</div>
                 <div class="card-body justify-content-center">
-                    <textarea class="form-control" rows="10" id="transmitter-display" readonly></textarea>
+                    <textarea class="form-control" rows="10" id="radio-display" readonly></textarea>
                 </div>
             </div>
         </div>
@@ -90,6 +90,8 @@
         var clock;
         var timeoutId;
         var ring_one = new Audio("{{ url_for('static', filename = 'sounds/ring_one.mp3') }}");
+        var terminal_history = {{ terminal_history | safe }};
+        var radio_history = {{ radio_history | safe }};
         {% if timer_run %}
         var timer_run = true;
         {% else %}
@@ -101,6 +103,32 @@
         } else {
             var ws_scheme = "ws://";
         };
+
+        function terminal_append_message(data){
+            var message_time = new Date(data.time);
+            var time_string =
+                ("0" + message_time.getHours()).slice(-2) + ':' +
+                ("0" + message_time.getMinutes()).slice(-2) + ':' +
+                ("0" + message_time.getSeconds()).slice(-2);
+            var message = time_string + ' ' + data.message + '\n';
+
+            var terminal_display = document.querySelector('#terminal-display');
+            terminal_display.value += message;
+            terminal_display.scrollTop = terminal_display.scrollHeight;
+        }
+
+        function radio_append_message(data){
+            var message_time = new Date(data.time);
+            var time_string =
+                ("0" + message_time.getHours()).slice(-2) + ':' +
+                ("0" + message_time.getMinutes()).slice(-2) + ':' +
+                ("0" + message_time.getSeconds()).slice(-2);
+            var message = time_string + ' ' + data.message + '\n';
+
+            var radio_display = document.querySelector('#radio-display');
+            radio_display.value += message;
+            radio_display.scrollTop = radio_display.scrollHeight;
+        }
 
 
         const gameStateSocket = new ReconnectingWebSocket(ws_scheme + window.location.host + "/ws/game/state");
@@ -122,18 +150,14 @@
                         timer_run = false;
                     };
                 } else if (data.type == 'terminal_display') {
-                    var terminal_display = document.querySelector('#terminal-display');
-                    terminal_display.value += (data.message + '\n');
-                    terminal_display.scrollTop = terminal_display.scrollHeight;
+                    terminal_append_message(data);
                 } else if (data.type == 'radio_message') {
-                    var transmitter_display = document.querySelector('#transmitter-display');
-                    transmitter_display.value += (data.message + '\n');
-                    transmitter_display.scrollTop = transmitter_display.scrollHeight;
+                    radio_append_message(data);
                 } else if (data.type == 'clear_game') {
                     var terminal_display = document.querySelector('#terminal-display');
                     terminal_display.value = '';
-                    var transmitter_display = document.querySelector('#transmitter-display');
-                    transmitter_display.value = '';
+                    var radio_display = document.querySelector('#radio-display');
+                    radio_display.value = '';
                 };
             };
         };
@@ -178,8 +202,10 @@
             clock.start();
             backgroundAction();
             {% endif %}
-            document.querySelector('#terminal-display').value = '{{ terminal_history }}'
-            document.querySelector('#transmitter-display').value = '{{ transmitter_history }}'
+            document.querySelector('#terminal-display').value = '';
+            terminal_history.forEach(function(item) {terminal_append_message(JSON.parse(item))});
+            document.querySelector('#radio-display').value = '';
+            radio_history.forEach(function(item) {radio_append_message(JSON.parse(item))});
         })
 
 

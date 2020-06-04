@@ -1,4 +1,5 @@
 from app import db
+import json
 
 
 class User(db.Model):
@@ -52,6 +53,15 @@ class TerminalMessage(db.Model):
     def __repr__(self):
         return '<Post {}>'.format(self.text)
 
+    def get_json(self):
+        display_message = self.author + " > \"" + self.text + "\" - " + self.answer
+        text_data = json.dumps({
+            'type': 'terminal_display',
+            'time': self.time.strftime('%Y-%m-%dT%H:%M:%SZ'),
+            'message': display_message,
+        })
+        return text_data
+
 
 class RadioMessage(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -64,3 +74,12 @@ class RadioMessage(db.Model):
 
     def __repr__(self):
         return '<Post {}>'.format(self.text)
+
+    def get_json(self):
+        display_message = self.author + " > \"" + self.text + "\""
+        text_data = json.dumps({
+            'type': 'radio_message',
+            'time': self.time.strftime('%Y-%m-%dT%H:%M:%SZ'),
+            'message': display_message,
+        })
+        return text_data

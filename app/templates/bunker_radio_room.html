@@ -39,7 +39,7 @@
         <div class="card">
             <div class="card-header text-center">Передатчик</div>
             <div class="card-body justify-content-center">
-                <textarea class="form-control" rows="10" id="transmitter-display" readonly></textarea>
+                <textarea class="form-control" rows="10" id="radio-display" readonly></textarea>
 
                 <div class="input-group" id="radio_input_group">
                     <div class="input-group-prepend">
@@ -64,12 +64,26 @@
         var clock;
         var timeoutId;
         var ring_one = new Audio("{{ url_for('static', filename = 'sounds/ring_one.mp3') }}");
+        var radio_history = {{ radio_history | safe }};
 
         if (window.location.protocol == "https:") {
             var ws_scheme = "wss://";
         } else {
             var ws_scheme = "ws://";
         };
+
+        function radio_append_message(data){
+            var message_time = new Date(data.time);
+            var time_string =
+                ("0" + message_time.getHours()).slice(-2) + ':' +
+                ("0" + message_time.getMinutes()).slice(-2) + ':' +
+                ("0" + message_time.getSeconds()).slice(-2);
+            var message = time_string + ' ' + data.message + '\n';
+
+            var radio_display = document.querySelector('#radio-display');
+            radio_display.value += message;
+            radio_display.scrollTop = radio_display.scrollHeight;
+        }
 
 
         const gameStateSocket = new ReconnectingWebSocket(ws_scheme + window.location.host + "/ws/game/state");
@@ -89,12 +103,10 @@
                         clearTimeout(timeoutId);
                     };
                 } else if (data.type == 'radio_message') {
-                    var transmitter_display = document.querySelector('#transmitter-display');
-                    transmitter_display.value += (data.message + '\n');
-                    transmitter_display.scrollTop = transmitter_display.scrollHeight;
+                    radio_append_message(data);
                 } else if (data.type == 'clear_game') {
-                    var transmitter_display = document.querySelector('#transmitter-display');
-                    transmitter_display.value = '';
+                    var radio_display = document.querySelector('#radio-display');
+                    radio_display.value = '';
                 };;
             };
         };
@@ -122,7 +134,8 @@
             clock.start();
             backgroundAction();
             {% endif %}
-            document.querySelector('#transmitter-display').value = '{{ transmitter_history }}'
+            document.querySelector('#radio-display').value = '';
+            radio_history.forEach(function(item) {radio_append_message(JSON.parse(item))});
         });
 
 

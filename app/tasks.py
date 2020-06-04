@@ -144,14 +144,7 @@ def terminal_message(message):
                                            text=text,
                                            answer=answer)
         db.session.add(terminal_message)
-
-        display_message = now.strftime("%H:%M:%S") + " " + author + " : " + text
-        display_message += "\n" + answer
-        text_data = json.dumps({
-            'type': 'terminal_display',
-            'message': display_message,
-        })
-        app.redis.publish(game_name, text_data)
+        app.redis.publish(game_name, terminal_message.get_json())
 
         # reset round
         game.roundEndData = now + timedelta(seconds=game.period)
@@ -187,10 +180,4 @@ def radio_receive(message):
                                      text=text,)
         db.session.add(radio_message)
         db.session.commit()
-
-        display_message = now.strftime("%H:%M:%S") + " " + author + " : " + text
-        text_data = json.dumps({
-            'type': 'radio_message',
-            'message': display_message,
-        })
-        app.redis.publish(game_name, text_data)
+        app.redis.publish(game_name, radio_message.get_json())

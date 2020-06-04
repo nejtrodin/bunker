@@ -83,13 +83,10 @@ def bunker_terminal():
         flash('Game is not created')
         return redirect(url_for('game.error'))
 
-    history = ''
+    history = []
     message_objects = TerminalMessage.query.filter_by(game_id=game.id)
     for message in message_objects:
-        history += message.time.strftime("%H:%M:%S")
-        history += " " + message.author
-        history += " : " + message.text + "\\n"
-        history += message.answer + "\\n"
+        history.append(message.get_json())
 
     return render_template('bunker_terminal.html',
                            time=game.update(datetime.utcnow()),
@@ -109,18 +106,16 @@ def bunker_radio_room():
         flash('Game is not created')
         return redirect(url_for('game.error'))
 
-    history = ''
+    radio_history = []
     message_objects = RadioMessage.query.filter_by(game_id=game.id)
     for message in message_objects:
-        history += message.time.strftime("%H:%M:%S")
-        history += " " + message.author
-        history += " : " + message.text + "\\n"
+        radio_history.append(message.get_json())
 
     return render_template('bunker_radio_room.html',
                            time=game.update(datetime.utcnow()),
                            timer_run=game.gameStarted,
                            character_name=character_name,
-                           transmitter_history=history,)
+                           radio_history=radio_history,)
 
 
 @bp.route('/game/admin')
@@ -135,24 +130,19 @@ def game_admin():
         db.session.commit()
         print("create new Game")
 
-    terminal_history = ''
+    terminal_history = []
     message_objects = TerminalMessage.query.filter_by(game_id=game.id)
     for message in message_objects:
-        terminal_history += message.time.strftime("%H:%M:%S")
-        terminal_history += " " + message.author
-        terminal_history += " : " + message.text + "\\n"
-        terminal_history += message.answer + "\\n"
+        terminal_history.append(message.get_json())
 
-    radio_history = ''
+    radio_history = []
     message_objects = RadioMessage.query.filter_by(game_id=game.id)
     for message in message_objects:
-        radio_history += message.time.strftime("%H:%M:%S")
-        radio_history += " " + message.author
-        radio_history += " : " + message.text + "\\n"
+        radio_history.append(message.get_json())
 
     return render_template('game_admin.html',
                            time=game.update(datetime.utcnow()),
                            timer_run=game.gameStarted,
                            secret_code=game.secretCode,
                            terminal_history=terminal_history,
-                           transmitter_history=radio_history,)
+                           radio_history=radio_history,)

@@ -64,12 +64,26 @@
         var clock;
         var timeoutId;
         var ring_one = new Audio("{{ url_for('static', filename = 'sounds/ring_one.mp3') }}");
+        var terminal_history = {{ terminal_history | safe }};
 
         if (window.location.protocol == "https:") {
             var ws_scheme = "wss://";
         } else {
             var ws_scheme = "ws://";
         };
+
+        function terminal_append_message(data){
+            var message_time = new Date(data.time);
+            var time_string =
+                ("0" + message_time.getHours()).slice(-2) + ':' +
+                ("0" + message_time.getMinutes()).slice(-2) + ':' +
+                ("0" + message_time.getSeconds()).slice(-2);
+            var message = time_string + ' ' + data.message + '\n';
+
+            var terminal_display = document.querySelector('#terminal-display');
+            terminal_display.value += message;
+            terminal_display.scrollTop = terminal_display.scrollHeight;
+        }
 
 
         const gameStateSocket = new ReconnectingWebSocket(ws_scheme + window.location.host + "/ws/game/state");
@@ -92,9 +106,7 @@
                         $("#code_input_group").addClass('d-none');
                     };
                 } else if (data.type == 'terminal_display') {
-                    var terminal_display = document.querySelector('#terminal-display');
-                    terminal_display.value += (data.message + '\n');
-                    terminal_display.scrollTop = terminal_display.scrollHeight;
+                    terminal_append_message(data);
                 } else if (data.type == 'clear_game') {
                     var terminal_display = document.querySelector('#terminal-display');
                     terminal_display.value = '';
@@ -125,7 +137,8 @@
             clock.start();
             backgroundAction();
             {% endif %}
-            document.querySelector('#terminal-display').value = '{{ terminal_history }}'
+            document.querySelector('#terminal-display').value = '';
+            terminal_history.forEach(function(item) {terminal_append_message(JSON.parse(item))});
         });
 
 
