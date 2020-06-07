@@ -143,6 +143,7 @@ def game_admin():
     return render_template('game_admin.html',
                            time=game.update(datetime.utcnow()),
                            timer_run=game.gameStarted,
+                           game_state=game.state,
                            secret_code=game.secretCode,
                            terminal_history=terminal_history,
                            radio_history=radio_history,)

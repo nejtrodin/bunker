@@ -1,87 +1,71 @@
 import json
-from rq import get_current_job
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta
+from pytz import utc
 from app import create_app, db
 from app.models import Game, TerminalMessage, RadioMessage
+from apscheduler.schedulers.base import JobLookupError
 
 
 app = create_app()
-app.app_context().push()
 
 
-def start_game():
-    print('start game')
-    game_name = "testGame"
-    now = datetime.utcnow()
+def game_update(game_id, new_state=None):
+    with app.app_context():
+        game = Game.query.filter_by(id=game_id).first()
+        if game is not None:
+            now = datetime.utcnow()
+            job_id = 'game_' + str(game_id)
 
-    game = Game.query.filter_by(name=game_name).first()
-    if game is not None:
-        game.gameStarted = True
-        if game.state == 'stop':
-            game.roundEndData = now + timedelta(seconds=game.period)
-        elif game.state == 'pause':
-            game.roundEndData = now + timedelta(seconds=game.left_time)
-        game.state = 'start'
-        if game.startData is None:
-            game.startData = now
+            if new_state == 'start':
+                print('start game')
+                game.gameStarted = True
+                if game.state == 'stop':
+                    game.roundEndData = now + timedelta(seconds=game.period)
+                elif game.state == 'pause':
+                    game.roundEndData = now + timedelta(seconds=game.left_time)
+                game.state = 'start'
+                if game.startData is None:
+                    game.startData = now
+            elif new_state == 'stop':
+                print('stop game')
+                game.roundEndData = now
+                try:
+                    app.apscheduler.remove_job(job_id)
+                except JobLookupError:
+                    pass
+            elif new_state == 'pause':
+                print('pause game')
+                game.update(now)
+                game.state = 'pause'
+                game.gameStarted = False
+                try:
+                    app.apscheduler.remove_job(job_id)
+                except JobLookupError:
+                    pass
 
-        time = game.update(now)
-        text_data = json.dumps({
-            'type': 'game_state',
-            'time': time,
-            'timer_run': game.gameStarted,
-            'game_state': game.state
-        })
-        db.session.commit()
+            timer_value = game.update(now)
+            if game.gameStarted and timer_value > 0:
+                # schedule next update
+                delay = timer_value
+                if timer_value > 20:
+                    delay = 20
 
-        app.redis.publish(game_name, text_data)
+                next_date = now + timedelta(seconds=delay);
+                app.apscheduler.add_job(id=job_id,
+                                        func=game_update,
+                                        trigger='date',
+                                        run_date=utc.fromutc(next_date),
+                                        kwargs={'game_id': game_id})
 
+            text_data = json.dumps({
+                'type': 'game_state',
+                'time': round(timer_value),
+                'timer_run': game.gameStarted,
+                'game_state': game.state
+            })
+            app.redis.publish(game.name, text_data)
 
-def end_game():
-    print('end game')
-    game_name = "testGame"
-    now = datetime.utcnow()
-
-    game = Game.query.filter_by(name=game_name).first()
-    if game is not None:
-        game.roundEndData = now
-        time = game.update(now)
-        game.gameStarted = False
-        game.state = 'stop'
-
-        # Send message to WebSocket
-        text_data = json.dumps({
-            'type': 'game_state',
-            'time': time,
-            'timer_run': game.gameStarted,
-            'game_state': game.state
-        })
-        db.session.commit()
-
-        app.redis.publish(game_name, text_data)
-
-
-def pause_game():
-    print('pause game')
-    game_name = "testGame"
-    now = datetime.utcnow()
-
-    game = Game.query.filter_by(name=game_name).first()
-    if game is not None:
-        time = game.update(now)
-        game.gameStarted = False
-        game.state = 'pause'
-
-        # Send message to WebSocket
-        text_data = json.dumps({
-            'type': 'game_state',
-            'time': time,
-            'timer_run': game.gameStarted,
-            'game_state': game.state
-        })
-        db.session.commit()
-
-        app.redis.publish(game_name, text_data)
+            db.session.commit()
 
 
 def clear_game():
@@ -121,16 +105,13 @@ def terminal_message(message):
 
         match_counter = 0
         for number_string in number_strings:
-            print(number_string)
             try:
                 number = int(number_string)
-                print(number)
                 if number in code:
                     match_counter += 1
             except ValueError:
                 pass
 
-        print(match_counter)
         if match_counter == len(code):
             answer = 'Вы угадали код'
         elif match_counter > 0:

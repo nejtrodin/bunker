@@ -3,10 +3,10 @@ import gevent
 from app import sockets
 from config import Config
 from redis import Redis
-from flask import current_app
-from app.tasks import start_game, pause_game, end_game, clear_game, terminal_message, radio_receive
+from app.tasks import game_update, clear_game, terminal_message, radio_receive
 
 GAME_CHANNEL = 'testGame'
+game_id = 1
 
 redis = Redis.from_url(Config.REDIS_URL)
 
@@ -67,26 +67,18 @@ def game_socket(ws):
 
             command = data.get('command')
             if command == 'start_game':
-                start_game()
-                # current_app.task_queue.enqueue('app.tasks.start_game')
-                # game_backend.start_game()
+                game_update(game_id=game_id, new_state='start')
             elif command == 'stop_game':
-                end_game()
-                # current_app.task_queue.enqueue('app.tasks.end_game')
-                # game_backend.end_game()
+                game_update(game_id=game_id, new_state='stop')
             elif command == 'pause_game':
-                pause_game()
-                # current_app.task_queue.enqueue('app.tasks.pause_game')
+                game_update(game_id=game_id, new_state='pause')
             elif command == 'clear_game':
                 clear_game()
-                # current_app.task_queue.enqueue('app.tasks.clear_game')
 
             terminal_send = data.get('terminal_send')
             if terminal_send:
                 terminal_message(terminal_send)
-                # current_app.task_queue.enqueue('app.tasks.terminal_message', terminal_message)
 
             radio_send = data.get('radio_send')
             if radio_send:
                 radio_receive(radio_send)
-                # current_app.task_queue.enqueue('app.tasks.radio_receive', radio_send)

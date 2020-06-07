@@ -130,6 +130,26 @@
             radio_display.scrollTop = radio_display.scrollHeight;
         }
 
+        function update_game_state(state) {
+            switch(state) {
+                case 'start':
+                    $('#game-start-btn').prop('disabled', true);
+                    $('#game-pause-btn').prop('disabled', false);
+                    $('#game-stop-btn').prop('disabled', false);
+                break;
+                case 'stop':
+                    $('#game-start-btn').prop('disabled', false);
+                    $('#game-pause-btn').prop('disabled', true);
+                    $('#game-stop-btn').prop('disabled', true);
+                break;
+                case 'pause':
+                    $('#game-start-btn').prop('disabled', false);
+                    $('#game-pause-btn').prop('disabled', true);
+                    $('#game-stop-btn').prop('disabled', true);
+                break;
+            }
+        }
+
 
         const gameStateSocket = new ReconnectingWebSocket(ws_scheme + window.location.host + "/ws/game/state");
         const gameCommandSocket = new ReconnectingWebSocket(ws_scheme + window.location.host + "/ws/game/command");
@@ -149,6 +169,7 @@
                         clearTimeout(timeoutId);
                         timer_run = false;
                     };
+                    update_game_state(data.game_state);
                 } else if (data.type == 'terminal_display') {
                     terminal_append_message(data);
                 } else if (data.type == 'radio_message') {
@@ -206,6 +227,7 @@
             terminal_history.forEach(function(item) {terminal_append_message(JSON.parse(item))});
             document.querySelector('#radio-display').value = '';
             radio_history.forEach(function(item) {radio_append_message(JSON.parse(item))});
+            update_game_state('{{ game_state }}');
         })
 
 
