@@ -11,13 +11,16 @@
           <div class="collapse navbar-collapse" id="navbarSupportedContent">
                 <ul class="navbar-nav mr-auto">
                     <li class="nav-item">
-                        <a class="nav-link" href="/game/bunker_hall/">Бункер</a>
+                        <a class="nav-link" href="{{ url_for('game.bunker_hall') }}">Бункер</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="/game/terminal">Терминал</a>
+                        <a class="nav-link" href="{{ url_for('game.bunker_radio_room') }}">Радиорубка</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="/game/admin/">Админка</a>
+                        <a class="nav-link" href="{{ url_for('game.bunker_terminal') }}">Терминал</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('game.game_admin') }}">Админка</a>
                     </li>
                 </ul>
           </div>
