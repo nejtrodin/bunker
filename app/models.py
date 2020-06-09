@@ -23,6 +23,7 @@ class Game(db.Model):
     startData = db.Column(db.DateTime, nullable=True)
     roundEndData = db.Column(db.DateTime, nullable=True)
     secretCode = db.Column(db.String(200), index=True, default='1 2 3 4')
+    conferenceCode = db.Column(db.String(200), nullable=True)  # код добавляемый в название видеоконференций
 
     def __repr__(self):
         return '<Game {}. State {}. Left: {}>'.format(self.name, self.state, self.left_time)

@@ -10,6 +10,7 @@ from app.game import bp
 
 from datetime import datetime
 from flask import current_app
+import random
 
 game_name = "testGame"
 
@@ -31,7 +32,7 @@ def error():
     return os.environ.get('DATABASE_URL')
 
 
-@bp.route('/game/character', methods=['GET', 'POST'])
+@bp.route('/game/character/', methods=['GET', 'POST'])
 def character_settings():
     form = CharacterForm()
     if form.validate_on_submit():
@@ -40,7 +41,7 @@ def character_settings():
     return render_template('character.html', form=form)
 
 
-@bp.route('/game/secret-code', methods=['GET', 'POST'])
+@bp.route('/game/secret-code/', methods=['GET', 'POST'])
 def secret_code():
     form = SecretCodeForm()
     if form.validate_on_submit():
@@ -55,7 +56,7 @@ def secret_code():
     return render_template('secret_code.html', form=form)
 
 
-@bp.route('/game/bunker_hall')
+@bp.route('/game/bunker_hall/')
 def bunker_hall():
     if 'character_name' not in session:
         return redirect(url_for('game.character_settings'))
@@ -66,13 +67,14 @@ def bunker_hall():
         flash('Game is not created')
         return redirect(url_for('game.error'))
 
-    return render_template('bunker_hall.html',
+    return render_template('bunker_hall_jitsi.html',
                            time=game.update(datetime.utcnow()),
                            timer_run=game.gameStarted,
-                           character_name=character_name,)
+                           character_name=character_name,
+                           jitsi_room_name='bunker_' + game.conferenceCode)
 
 
-@bp.route('/game/bunker_terminal')
+@bp.route('/game/bunker_terminal/')
 def bunker_terminal():
     if 'character_name' not in session:
         return redirect(url_for('game.character_settings'))
@@ -95,7 +97,7 @@ def bunker_terminal():
                            terminal_history=history,)
 
 
-@bp.route('/game/bunker_radio_room')
+@bp.route('/game/bunker_radio_room/')
 def bunker_radio_room():
     if 'character_name' not in session:
         return redirect(url_for('game.character_settings'))
@@ -118,7 +120,7 @@ def bunker_radio_room():
                            radio_history=radio_history,)
 
 
-@bp.route('/game/admin')
+@bp.route('/game/admin/')
 def game_admin():
     game = Game.query.filter_by(name=game_name).first()
     if game is None:
@@ -126,6 +128,14 @@ def game_admin():
                     state='stop',
                     announcedData=datetime.utcnow(),
                     gameStarted=False)
+
+        if game.conferenceCode is None:
+            chars = 'abcdefghijklnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890'
+            code = ''
+            for i in range(15):
+                code += random.choice(chars)
+            game.conferenceCode = code
+
         db.session.add(game)
         db.session.commit()
         print("create new Game")

@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+
+{% block head %}
+    <title>Станция "Красный Феникс"</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename = 'libs/flipclock/flipclock.css') }}">
+    <style type="text/css">
+       #jitsi-card {
+            height: 80vh;
+       }
+      </style>
+{% endblock head %}
+
+
+{% block content %}
+    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+        Здравствуйте, {{ character_name }}.
+        <a href="{{ url_for('game.character_settings') }}" class="nav-link mr-sm-2">Изменить имя</a>
+    </nav>
+    <br>
+
+    <div class="container bg-light">
+        <h2 class="text-center">Бункер</h2>
+    </div>
+
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col">
+                <div class="card" id="jitsi-card">
+                    <div class="card-body">
+                        <dev id="jitsi-container"/>
+                    </div>
+                </div>
+            </div>
+            <div class="col-sm-auto">
+
+                <div class="d-flex p-2 justify-content-center">
+                    <div class="card text-center">
+                        <div class="card-header">Время до конца...</div>
+                        <div class="card-body justify-content-center">
+                            <div class="clock"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="d-flex p-2 justify-content-center">
+                    <div class="card text-center">
+                        <div class="card-header">Навигация</div>
+                        <div class="card-body justify-content-center">
+                            <a class="btn btn-primary m-1" href="{{ url_for('game.bunker_radio_room') }}" role="button">Войти в Радиорубку</a>
+                            <a class="btn btn-primary m-1" href="{{ url_for('game.bunker_terminal') }}" role="button">Войти в Терминал</a>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <br>
+{% endblock content %}
+
+
+{% block javascript %}
+    <script type="text/javascript" src="{{ url_for('static', filename = 'libs/flipclock/flipclock.min.js') }}"></script>
+    <script type="text/javascript" src="{{ url_for('static', filename = 'js/reconnecting-websocket.min.js') }}"></script>
+    <script src='https://meet.jit.si/external_api.js'></script>
+
+    <script>
+        var container = document.querySelector('#jitsi-container');
+        var api = null;
+
+        var domain = "meet.jit.si";
+        var options = {
+            roomName: '{{ jitsi_room_name }}',
+            parentNode: container,
+            interfaceConfigOverwrite: {
+<!--                TOOLBAR_BUTTONS: [ 'microphone', 'camera', 'closedcaptions', 'desktop', 'fullscreen',-->
+<!--                                   'fodeviceselection', 'profile', 'settings', 'videoquality',-->
+<!--                                    'feedback', 'stats', 'shortcuts', 'videobackgroundblur', 'help', 'mute-everyone',-->
+<!--                                    'e2ee', 'security'],-->
+            },
+            userInfo: {
+                displayName: '{{ character_name }}'
+            }
+        };
+        api = new JitsiMeetExternalAPI(domain, options);
+    </script>
+
+    <script>
+        var clock;
+        var timeoutId;
+        var ring_one = new Audio("{{ url_for('static', filename = 'sounds/ring_one.mp3') }}");
+
+        if (window.location.protocol == "https:") {
+            var ws_scheme = "wss://";
+        } else {
+            var ws_scheme = "ws://";
+        };
+
+
+        const gameStateSocket = new ReconnectingWebSocket(ws_scheme + window.location.host + "/ws/game/state");
+
+        gameStateSocket.onmessage = function(e) {
+            const data = JSON.parse(e.data);
+            if (typeof(data.time) != "undefined") {
+                clock.setTime(data.time);
+                if (data.timer_run) {
+                    clock.start();
+                    backgroundAction();
+                }
+                else {
+                    clock.stop();
+                    clearTimeout(timeoutId);
+                };
+            };
+        };
+
+        gameStateSocket.onclose = function(e) {
+            console.log('gameStateSocket closed');
+            this.gameStateSocket = new WebSocket(gameStateSocket.url);
+        };
+
+
+        $(document).ready(function() {
+            clock = $(".clock").FlipClock({
+                clockFace : "MinuteCounter",
+                autoStart : false,
+                countdown : true,
+                language : "Russian",
+            });
+            clock.setTime({{ time }});
+            {% if timer_run %}
+            clock.start();
+            backgroundAction();
+            {% endif %}
+        });
+
+
+        function backgroundAction() {
+            clearTimeout(timeoutId);
+            time = clock.getTime()
+            if (time > 60) {
+                timeoutMs = 1000 * (time - 60);
+                timeoutId = setTimeout(backgroundAction, timeoutMs);
+            } else if (time > 40) {
+                timeoutMs = 1000 * (time - 5*Math.floor((time - 1)/5));
+                timeoutId = setTimeout(backgroundAction, timeoutMs);
+            } else if (time > 20) {
+                timeoutMs = 1000 * (time - 4*Math.floor((time - 1)/4));
+                timeoutId = setTimeout(backgroundAction, timeoutMs);
+            } else if (time > 10) {
+                timeoutMs = 1000 * (time - 2*Math.floor((time - 1)/2));
+                timeoutId = setTimeout(backgroundAction, timeoutMs);
+            } else if (time > 0) {
+                timeoutMs = 1000 * (time - Math.floor((time - 1)));
+                timeoutId = setTimeout(backgroundAction, timeoutMs);
+            }
+
+            if (time <= 60 && time >= 0) {
+                ring_one.play();
+            }
+        };
+    </script>
+{% endblock javascript%}
