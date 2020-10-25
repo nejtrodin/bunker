@@ -90,29 +90,29 @@ def terminal_message(message):
     game = Game.query.filter_by(name=game_name).first()
     if game is not None:
         # check message
-        code_str_list = game.secretCode.split()
-        code = list(map(int, code_str_list))
+        game_code_list = game.secretCode.split()
+        target_match = len(game_code_list)
 
+        # сообщение вида "автор: код терминала"
         try:
             temp = message.split(':')
             author = temp[0]
             text = temp[1]
-            number_strings = text.split()
+            user_code_list = text.split()
         except AttributeError:
             author = "?"
             text = message
-            number_strings = []
+            user_code_list = []
 
         match_counter = 0
-        for number_string in number_strings:
+        for user_code in user_code_list:
             try:
-                number = int(number_string)
-                if number in code:
-                    match_counter += 1
+                game_code_list.remove(user_code)
+                match_counter += 1
             except ValueError:
                 pass
 
-        if match_counter == len(code):
+        if match_counter == target_match:
             answer = 'Вы угадали код'
         elif match_counter > 0:
             answer = 'Количество совпадений: ' + str(match_counter)
